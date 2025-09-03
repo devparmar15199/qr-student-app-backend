@@ -1,0 +1,37 @@
+import mongoose from 'mongoose';
+
+const userSchema = new mongoose.Schema({
+    enrollmentNo: {
+        type: String,
+        required: function() {
+            return this.role === 'student';
+        },
+        index: { unique: true, sparse: true },
+        match: [/^[A-Z]{2}\d{2}[A-Z]{4}\d{3}$/, 'Invalid enrollment number format']
+    },
+    email: { 
+        type: String, 
+        unique: true, 
+        required: true, 
+        lowercase: true
+    },
+    passwordHash: { type: String, required: true },
+    fullName: { type: String, required: true },
+    role: {
+        type: String, 
+        enum: ['teacher', 'student', 'admin'], 
+        required: true, 
+        default: 'student'
+    },
+    faceEmbedding: { type: [Number], default: [] }
+}, { strict: true, timestamps: true });
+
+// Pre-save hook to ensure enrollmentNo is not set for teachers/admins
+userSchema.pre('save', function(next) {
+  if (this.role !== 'student') {
+    this.enrollmentNo = undefined;
+  }
+  next();
+});
+
+export const User = mongoose.model('User', userSchema);
