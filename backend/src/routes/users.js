@@ -1,4 +1,6 @@
 import express from 'express';
+import multer from 'multer';
+import path from 'path';
 import {  
   createUser,
   getAllUsers,
@@ -7,15 +9,21 @@ import {
   getUserProfile,
   updateUserProfile,
   changePassword,
+  uploadProfilePicture,
 } from '../controllers/userController.js';
 import { authMiddleware, roleMiddleware } from '../middlewares/auth.js';
 import {  
   validate,
   createUserValidation,
   updateUserValidation,
+  profilePictureValidation,
 } from '../middlewares/validate.js';
 
 const router = express.Router();
+
+// Configure multer storage
+const storage = multer.memoryStorage(); // Use memory storage for buffer
+const upload = multer({ storage: storage });
 
 // User routes
 router
@@ -25,6 +33,16 @@ router
 
 // Change password route
 router.put('/change-password', authMiddleware, changePassword);
+
+// Profile picture upload route
+// We need to use multer middleware to handle the file upload first
+router.post(
+  '/profile-picture', 
+  authMiddleware,
+  upload.single('profilePicture'),
+  validate(profilePictureValidation), 
+  uploadProfilePicture
+);
 
 // Students route for teachers
 router.get('/students', authMiddleware, roleMiddleware(['teacher', 'admin']), getStudents);

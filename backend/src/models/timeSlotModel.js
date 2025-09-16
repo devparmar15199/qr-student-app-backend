@@ -39,7 +39,6 @@ timeSlotSchema.pre('save', function(next) {
   next();
 });
 
-// Indexes
 timeSlotSchema.index({ order: 1, isActive: 1 });
 timeSlotSchema.index({ startTime: 1, endTime: 1, isActive: 1 }, { unique: true });
 

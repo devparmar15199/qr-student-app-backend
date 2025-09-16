@@ -27,4 +27,5 @@ classTeacherSchema.pre('save', async function(next) {
 
 // Unique index to prevent duplicate assignments
 classTeacherSchema.index({ classId: 1, teacherId: 1 }, { unique: true });
+
 export const ClassTeacher = mongoose.model('ClassTeacher', classTeacherSchema);

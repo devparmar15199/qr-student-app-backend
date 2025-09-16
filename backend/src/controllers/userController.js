@@ -25,6 +25,12 @@ export const getUserProfile = async (req, res) => {
       fullName: user.fullName,
       role: user.role,
       enrollmentNo: user.enrollmentNo,
+      phoneNumber: user.phoneNumber,
+      department: user.department,
+      division: user.division,
+      semester: user.semester,
+      year: user.year,
+      profilePictureUrl: user.profilePictureUrl,
     });
   } catch (err) {
     logger.error('Get user profile error:', err);
@@ -87,6 +93,12 @@ export const updateUserProfile = async (req, res) => {
       fullName: updatedUser.fullName,
       role: updatedUser.role,
       enrollmentNo: updatedUser.enrollmentNo,
+      phoneNumber: updatedUser.phoneNumber,
+      department: updatedUser.department,
+      division: updatedUser.division,
+      semester: updatedUser.semester,
+      year: updatedUser.year,
+      profilePictureUrl: updatedUser.profilePictureUrl,
     });
   } catch (err) {
     logger.error('Update user profile error:', err);
@@ -203,6 +215,12 @@ export const createUser = async (req, res) => {
       fullName: user.fullName,
       role: user.role,
       enrollmentNo: user.enrollmentNo,
+      phoneNumber: user.phoneNumber,
+      department: user.department,
+      division: user.division,
+      semester: user.semester,
+      year: user.year,
+      profilePictureUrl: user.profilePictureUrl,
     });
   } catch (err) {
     logger.error('Create user error:', err);
@@ -294,6 +312,44 @@ export const getStudents = async (req, res) => {
 };
 
 /**
+ * Upload profile picture
+ * @route POST /api/users/profile-picture
+ * @access Private
+ */
+export const uploadProfilePicture = async (req, res) => {
+  try {
+    // In a real implementation, you would handle file upload here
+    // For now, we'll assume the file URL is provided in the request body
+    const { profilePictureUrl } = req.body;
+
+    if (!profilePictureUrl) {
+      return res.status(400).json({ error: 'Profile picture URL is required' });
+    }
+
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    user.profilePictureUrl = profilePictureUrl;
+    await user.save();
+
+    // Log the upload
+    await new AuditLog({
+      userId: user._id,
+      action: 'UPDATE_PROFILE_PICTURE',
+      details: { profilePictureUrl },
+      status: 'success'
+    }).save();
+
+    res.json({ profilePictureUrl });
+  } catch (err) {
+    logger.error('Upload profile picture error:', err);
+    res.status(400).json({ error: err.message });
+  }
+};
+
+/**
  * Get user by ID (Admin only)
  * @route GET /api/users/:id
  * @access Admin
@@ -313,6 +369,12 @@ export const getUserById = async (req, res) => {
       fullName: user.fullName,
       role: user.role,
       enrollmentNo: user.enrollmentNo,
+      phoneNumber: user.phoneNumber,
+      department: user.department,
+      division: user.division,
+      semester: user.semester,
+      year: user.year,
+      profilePictureUrl: user.profilePictureUrl,
     });
   } catch (err) {
     logger.error('Get user by ID error:', err);

@@ -3,6 +3,8 @@ import logger from '../utils/logger.js';
 import { Class } from '../models/classModel.js';
 import { ClassEnrollment } from '../models/classEnrollmentModel.js';
 import { ClassTeacher } from '../models/classTeacherModel.js';
+import { Schedule } from '../models/scheduleModel.js';
+import { User } from '../models/userModel.js';
 import { AuditLog } from '../models/auditLogModel.js';
 
 /**
@@ -310,6 +312,98 @@ export const deleteClass = async (req, res) => {
     logger.error('Delete class error:', err);
     if (err.message === 'Class not found') {
       res.status(404).json({ error: err.message });
+    } else {
+      res.status(400).json({ error: err.message });
+    }
+  }
+};
+
+/**
+ * @route GET /api/classes/:id/schedule
+ * @desc Get schedule for a specific class
+ * @access Student, Teacher, Admin
+ */
+export const getClassSchedule = async (req, res) => {
+  try {
+    const classId = req.params.id;
+
+    if (!mongoose.isValidObjectId(classId)) {
+      throw new Error('Invalid class ID');
+    }
+
+    // Verify user has access to this class
+    const isTeacher = await ClassTeacher.findOne({ classId, teacherId: req.user._id });
+    const isStudent = await ClassEnrollment.findOne({ classId, studentId: req.user._id, isActive: true });
+    
+    if (!isTeacher && !isStudent && req.user.role !== 'admin') {
+      throw new Error('Not authorized to access this class');
+    }
+
+    // Get schedules for this class
+    const schedules = await Schedule.find({ classId, isActive: true })
+      .populate('teacherId', 'fullName email')
+      .sort({ dayOfWeek: 1, startTime: 1 });
+
+    res.json(schedules);
+  } catch (err) {
+    logger.error('Get class schedule error:', err);
+    if (err.message === 'Not authorized to access this class') {
+      res.status(403).json({ error: err.message });
+    } else {
+      res.status(400).json({ error: err.message });
+    }
+  }
+};
+
+/**
+ * @route GET /api/classes/:id/classmates
+ * @desc Get classmates for a specific class (for students)
+ * @access Student, Teacher, Admin
+ */
+export const getClassmates = async (req, res) => {
+  try {
+    const classId = req.params.id;
+
+    if (!mongoose.isValidObjectId(classId)) {
+      throw new Error('Invalid class ID');
+    }
+
+    // Verify user has access to this class
+    const isTeacher = await ClassTeacher.findOne({ classId, teacherId: req.user._id });
+    const isStudent = await ClassEnrollment.findOne({ classId, studentId: req.user._id, isActive: true });
+    
+    if (!isTeacher && !isStudent && req.user.role !== 'admin') {
+      throw new Error('Not authorized to access this class');
+    }
+
+    // Get all active enrollments for this class
+    const enrollments = await ClassEnrollment.find({ classId, isActive: true })
+      .populate('studentId', 'fullName email enrollmentNo profilePictureUrl phoneNumber department division semester year')
+      .sort({ 'studentId.fullName': 1 });
+
+    // Extract student information
+    const classmates = enrollments.map(enrollment => {
+      const student = enrollment.studentId;
+      return {
+        _id: student._id,
+        fullName: student.fullName,
+        email: student.email,
+        enrollmentNo: student.enrollmentNo,
+        profilePictureUrl: student.profilePictureUrl,
+        phoneNumber: student.phoneNumber,
+        department: student.department,
+        division: student.division,
+        semester: student.semester,
+        year: student.year,
+        enrolledAt: enrollment.enrolledAt
+      };
+    });
+
+    res.json(classmates);
+  } catch (err) {
+    logger.error('Get classmates error:', err);
+    if (err.message === 'Not authorized to access this class') {
+      res.status(403).json({ error: err.message });
     } else {
       res.status(400).json({ error: err.message });
     }

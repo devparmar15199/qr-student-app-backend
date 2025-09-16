@@ -6,16 +6,10 @@ dotenv.config();
 
 const connectDB = async () => {
   try {
-    if (!process.env.MONGO_URI) {
-      throw new Error('MONGO_URI is not defined in environment variables');
-    }
-
     await mongoose
       .connect(process.env.MONGO_URI, {
         dbName: 'attendanceApp',
         tls: true,
-        serverSelectionTimeoutMS: 5000,
-        maxPoolSize: 10,
     });
 
     logger.info('MongoDB connected');

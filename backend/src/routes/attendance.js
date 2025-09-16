@@ -7,6 +7,9 @@ import {
   manualAttendance,
   getAttendanceByStudent,
   getAttendanceByClass,
+  getAttendanceReport,
+  getMyAttendance,
+  getTodayAttendance,
 } from '../controllers/attendanceController.js';
 import { authMiddleware, roleMiddleware } from '../middlewares/auth.js';
 import { 
@@ -30,6 +33,8 @@ const validateObjectId = (paramName) => (req, res, next) => {
 // Student routes
 router.post('/', authMiddleware, roleMiddleware(['student']), validate(attendanceValidation), submitAttendance);
 router.post('/sync', authMiddleware, roleMiddleware(['student']), validate(syncAttendanceValidation), syncAttendance);
+router.get('/my-attendance', authMiddleware, roleMiddleware(['student']), validate(dateQueryValidation), getMyAttendance);
+router.get('/today', authMiddleware, roleMiddleware(['student']), getTodayAttendance);
 
 // Teacher and Admin routes
 router.use(authMiddleware, roleMiddleware(['teacher', 'admin']));
@@ -57,6 +62,28 @@ router.get(
   validateObjectId('classId'),
   validate(dateQueryValidation),
   getAttendanceByClass
+);
+
+// Attendance report endpoint
+router.get(
+  '/report/class/:classId',
+  authMiddleware,
+  async (req, res, next) => {
+    if (req.user.role === 'student') {
+      const enrollment = await mongoose.model('ClassEnrollment').findOne({
+        classId: req.params.classId,
+        studentId: req.user._id,
+        isActive: true,
+      });
+      if (!enrollment) {
+        return res.status(403).json({ error: 'Not enrolled in this class' });
+      }
+    }
+    next();
+  },
+  validateObjectId('classId'),
+  validate(dateQueryValidation),
+  getAttendanceReport
 );
 
 export default router;

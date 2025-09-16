@@ -1,4 +1,3 @@
-import mongoose from 'mongoose';
 import express from 'express';
 import {  
   getTimeSlots,
@@ -11,7 +10,8 @@ import {
 import { authMiddleware, roleMiddleware } from '../middlewares/auth.js';
 import {  
   validate,
-  timeSlotValidation,
+  createTimeSlotValidation,
+  updateTimeSlotValidation,
   availableTimeSlotValidation,
   initializeTimeSlotValidation,
 } from '../middlewares/validate.js';
@@ -24,21 +24,14 @@ router.get('/', getTimeSlots);
 // Protected routes
 router.use(authMiddleware);
 
-// Validate ObjectId for routes with :id
-const validateObjectId = (req, res, next) => {
-  if (!mongoose.isValidObjectId(req.params.id)) {
-    return res.status(400).json({ error: 'Invalid time slot ID' });
-  }
-  next();
-};
-
 router.get('/available', validate(availableTimeSlotValidation), getAvailableTimeSlots);
 
 // Admin routes
 router.use(roleMiddleware(['admin']));
-router.post('/', validate(timeSlotValidation), createTimeSlot);
+
+router.post('/', validate(createTimeSlotValidation), createTimeSlot);
 router.post('/initialize', validate(initializeTimeSlotValidation), initializeDefaultTimeSlots);
-router.put('/:id', validateObjectId, validate(timeSlotValidation), updateTimeSlot);
-router.delete('/:id', validateObjectId, deleteTimeSlot);
+router.put('/:id', validate(updateTimeSlotValidation), updateTimeSlot);
+router.delete('/:id', deleteTimeSlot);
 
 export default router;

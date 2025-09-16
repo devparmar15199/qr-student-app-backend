@@ -518,3 +518,166 @@ export const manualAttendance = async (req, res) => {
     ).json({ error: err.message });
   }
 };
+
+/**
+ * @route GET /api/attendances/report/class/:classId
+ * @desc Get attendance report for a specific class
+ * @access Teacher, Admin, or enrolled Student
+ */
+export const getAttendanceReport = async (req, res) => {
+  try {
+    const { classId } = req.params;
+    const { startDate, endDate, limit = 50, offset = 0 } = req.query;
+
+    if (!mongoose.isValidObjectId(classId)) {
+      throw new Error('Invalid classId');
+    }
+
+    // Verify access
+    if (req.user.role === 'student') {
+      const enrollment = await ClassEnrollment.findOne({
+        classId,
+        studentId: req.user._id,
+        isActive: true,
+      });
+      if (!enrollment) {
+        return res.status(403).json({ error: 'Not enrolled in this class' });
+      }
+    } else if (req.user.role === 'teacher') {
+      const classObj = await Class.findOne({ _id: classId, teacherId: req.user._id });
+      if (!classObj) {
+        return res.status(403).json({ error: 'Not authorized for this class' });
+      }
+    }
+
+    const query = { classId };
+
+    // Add date range filter
+    if (startDate || endDate) {
+      query.attendedAt = {};
+      if (startDate) query.attendedAt.$gte = new Date(startDate);
+      if (endDate) query.attendedAt.$lte = new Date(endDate);
+    }
+
+    // Get total count for pagination
+    const total = await Attendance.countDocuments(query);
+
+    // Get attendance records with pagination
+    const attendances = await Attendance.find(query)
+      .populate('studentId', 'fullName enrollmentNo email')
+      .populate('scheduleId', 'dayOfWeek startTime endTime sessionType')
+      .populate('sessionId', 'qrPayload.timestamp')
+      .sort({ attendedAt: -1 })
+      .skip(parseInt(offset))
+      .limit(parseInt(limit));
+
+    // Calculate statistics
+    const stats = {
+      total: attendances.length,
+      present: attendances.filter((a) => a.status === 'present').length,
+      late: attendances.filter((a) => a.status === 'late').length,
+      absent: attendances.filter((a) => a.status === 'absent').length,
+      manualEntries: attendances.filter((a) => a.manualEntry).length,
+    };
+
+    res.json({
+      attendances,
+      stats,
+      pagination: {
+        total,
+        limit: parseInt(limit),
+        offset: parseInt(offset),
+        hasMore: total > parseInt(offset) + parseInt(limit)
+      }
+    });
+  } catch (err) {
+    logger.error('Get attendance report error:', err);
+    res.status(err.message.includes('Invalid') ? 400 : err.message.includes('Not authorized') ? 403 : 500).json({
+      error: err.message
+    });
+  }
+};
+
+/**
+ * @route GET /api/attendances/my-attendance
+ * @desc Get current user's attendance records
+ * @access Student
+ */
+export const getMyAttendance = async (req, res) => {
+  try {
+    const { classId, startDate, endDate, limit = 50, offset = 0 } = req.query;
+
+    const query = { studentId: req.user._id };
+
+    // Add class filter if provided
+    if (classId) {
+      if (!mongoose.isValidObjectId(classId)) {
+        throw new Error('Invalid classId');
+      }
+      
+      // Verify enrollment
+      const enrollment = await ClassEnrollment.findOne({
+        classId,
+        studentId: req.user._id,
+        isActive: true,
+      });
+      if (!enrollment) {
+        return res.status(403).json({ error: 'Not enrolled in this class' });
+      }
+      
+      query.classId = classId;
+    }
+
+    // Add date range filter
+    if (startDate || endDate) {
+      query.attendedAt = {};
+      if (startDate) query.attendedAt.$gte = new Date(startDate);
+      if (endDate) query.attendedAt.$lte = new Date(endDate);
+    }
+
+    const attendances = await Attendance.find(query)
+      .populate('classId', 'classNumber subjectName subjectCode')
+      .populate('scheduleId', 'dayOfWeek startTime endTime sessionType')
+      .populate('sessionId', 'qrPayload.timestamp')
+      .sort({ attendedAt: -1 })
+      .skip(parseInt(offset))
+      .limit(parseInt(limit));
+
+    res.json(attendances);
+  } catch (err) {
+    logger.error('Get my attendance error:', err);
+    res.status(err.message.includes('Invalid') ? 400 : err.message.includes('Not enrolled') ? 403 : 500).json({
+      error: err.message
+    });
+  }
+};
+
+/**
+ * @route GET /api/attendances/today
+ * @desc Get today's attendance for current user
+ * @access Student
+ */
+export const getTodayAttendance = async (req, res) => {
+  try {
+    const today = new Date();
+    const startOfDay = new Date(today.setHours(0, 0, 0, 0));
+    const endOfDay = new Date(today.setHours(23, 59, 59, 999));
+
+    const attendances = await Attendance.find({
+      studentId: req.user._id,
+      attendedAt: {
+        $gte: startOfDay,
+        $lte: endOfDay
+      }
+    })
+      .populate('classId', 'classNumber subjectName subjectCode')
+      .populate('scheduleId', 'dayOfWeek startTime endTime sessionType')
+      .populate('sessionId', 'qrPayload.timestamp')
+      .sort({ attendedAt: -1 });
+
+    res.json(attendances);
+  } catch (err) {
+    logger.error('Get today attendance error:', err);
+    res.status(500).json({ error: err.message });
+  }
+};

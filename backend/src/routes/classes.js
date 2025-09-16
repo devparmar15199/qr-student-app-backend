@@ -5,6 +5,8 @@ import {
   getClasses,
   getClassById,
   getClassStudents,
+  getClassSchedule,
+  getClassmates,
   updateClass,
   deleteClass,
 } from '../controllers/classController.js';
@@ -20,6 +22,8 @@ router.use(authMiddleware);
 router.get('/', getClasses);
 router.get('/:id', getClassById);
 router.get('/:id/students', roleMiddleware(['teacher', 'admin']), getClassStudents);
+router.get('/:id/schedule', getClassSchedule);
+router.get('/:id/classmates', getClassmates);
 
 // Teacher and admin roles
 router.post('/', validate(classValidation), roleMiddleware(['teacher', 'admin']), createClass);

@@ -14,7 +14,7 @@ const scheduleSchema = new mongoose.Schema({
     },
     sessionType: { 
         type: String, 
-        enum: ['lecture', 'lab', 'project'], 
+        enum: ['lecture', 'lab', 'tutorial', 'project', 'seminar'], 
         required: true 
     },
     dayOfWeek: { 

@@ -31,7 +31,6 @@ roomSchema.pre('save', async function (next) {
     next();
 });
 
-// Index
 roomSchema.index({ roomNumber: 1, isActive: 1 });
 
 export const Room = mongoose.model('Room', roomSchema);

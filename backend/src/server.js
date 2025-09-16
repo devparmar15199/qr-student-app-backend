@@ -21,11 +21,14 @@ dotenv.config();
 const app = express();
 
 // Security middlewares
-app.use(helmet());
+app.use(helmet({
+  crossOriginResourcePolicy: false,
+}));
 app.use(
   rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
     max: 100, // Limit each IP to 100 requests per window
+    message: 'Too many requests from this IP, please try again later.',
   })
 );
 
@@ -33,13 +36,17 @@ app.use(
 const qrRateLimit = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 500, // Higher limit for QR-related endpoints
+  message: 'Too many QR requests from this IP, please try again later.',
+});
+
+// Custom rate limiter for auth endpoints
+const authRateLimit = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20, // Lower limit for auth endpoints
+  message: 'Too many authentication attempts from this IP, please try again later.',
 });
 
 // CORS configuration for cross-platform support
-// app.use(cors({
-//   origin: ['http://10.194.102.227:3000', 'http://10.0.2.2:3000', 'http://localhost:3000'],
-//   credentials: true,
-// }));
 app.use(cors());
 
 // Parse JSON bodies
@@ -54,24 +61,17 @@ app.get('/', (req, res) => {
 });
 
 // Routes
-app.use('/api/auth', authRoutes);
+app.use('/api/auth', authRateLimit, authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/classes', classRoutes);
 app.use('/api/schedules', scheduleRoutes);
-app.use('/api/qr', qrRoutes);
+app.use('/api/qr', qrRateLimit, qrRoutes);
 app.use('/api/attendances', attendanceRoutes);
 app.use('/api/timeslots', timeSlotRoutes);
 app.use('/api/rooms', roomRoutes);
 app.use('/api/audit-logs', auditRoutes);
 
-// Global error-handling middleware
-app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).json({ error: 'Something went wrong!' });
-});
-
 const PORT = process.env.PORT || 5001;
-app.listen(PORT, '0.0.0.0', () => {
+app.listen(PORT, () => {
   console.log(`Server running on port: http://localhost:${PORT}`);
-  console.log(`Network accessible at: http://192.168.1.5:${PORT}`);
 });
